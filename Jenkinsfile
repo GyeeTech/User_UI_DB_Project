@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    environment {
+        DB_HOST = 'your_db_host'
+        DB_USER = 'your_db_user'
+        DB_PASS = 'your_db_password'
+        DB_NAME = 'mydb'
+        APP_DIR = 'path/to/your/app' // Path to your Flask app directory in the workspace
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout code from your repository
+                git 'https://github.com/your_username/your_flask_app.git'
+            }
+        }
+
+        stage('Set Up Python Environment') {
+            steps {
+                script {
+                    // Create a virtual environment and install requirements
+                    sh '''
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install -r requirements.txt
+                    '''
+                }
+            }
+        }
+
+        stage('Database Setup') {
+            steps {
+                script {
+                    // This is where you can execute SQL commands to set up your database
+                    // Make sure mysql-client is installed in your Jenkins environment
+                    sh '''
+                    mysql -h $DB_HOST -u $DB_USER -p$DB_PASS -e "
+                    CREATE DATABASE IF NOT EXISTS $DB_NAME;
+                    USE $DB_NAME;
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(45) NOT NULL,
+                        age INT NOT NULL,
+                        address VARCHAR(255) NOT NULL,
+                        postcode VARCHAR(10) NOT NULL,
+                        email VARCHAR(100) NOT NULL
+                    );"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                // Start the Flask application
+                script {
+                    sh '''
+                    source venv/bin/activate
+                    nohup python app.py &
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment Successful!'
+        }
+        failure {
+            echo 'Deployment Failed!'
+        }
+    }
+}
